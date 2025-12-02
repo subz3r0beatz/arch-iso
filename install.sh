@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-#  Custom Arch Linux Installer - Pure Wayland Edition
-#  Fixes: Runtime Wrapper for robust VM/Nvidia detection & Logging
+#  Custom Arch Linux Installer - Pure Wayland (Safe Wrapper Fix)
+#  Fixes: Prevents 'file not found' errors by generating wrapper separately
 # ==============================================================================
 
 # Colors
@@ -14,7 +14,7 @@ NC='\033[0m'
 # Stop on errors immediately
 set -e
 
-echo -e "${BLUE}Starting Arch Installer (Pure Wayland)...${NC}"
+echo -e "${BLUE}Starting Arch Installer (Final Fix)...${NC}"
 
 # ==============================================================================
 # 1. Keymap & Network
@@ -142,12 +142,9 @@ grep -q "Intel" /proc/cpuinfo && UCODE="intel-ucode"
 grep -q "AMD" /proc/cpuinfo && UCODE="amd-ucode"
 
 GPU_DRIVER="mesa"
-IS_NVIDIA=false
-
 if lspci | grep -i "NVIDIA"; then
     echo "  -> Nvidia detected"
     GPU_DRIVER="$GPU_DRIVER nvidia nvidia-utils nvidia-settings"
-    IS_NVIDIA=true
 elif lspci | grep -i "AMD" | grep -i "VGA"; then
     echo "  -> AMD detected"
     GPU_DRIVER="$GPU_DRIVER vulkan-radeon xf86-video-amdgpu"
@@ -160,15 +157,57 @@ fi
 # 6. Install Base System
 # ==============================================================================
 echo -e "${GREEN}[6/10] Installing Packages...${NC}"
-# pciutils is still useful for debugging, so I kept it
+# pciutils is needed for the wrapper script to detect VM/Nvidia
 pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring pciutils $UCODE $GPU_DRIVER
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # ==============================================================================
-# 7. System Config (Chroot)
+# 7. Generate Wrapper Script (Safe Method)
 # ==============================================================================
-echo -e "${GREEN}[7/10] System Configuration${NC}"
+echo -e "${GREEN}[7/10] Creating Startup Wrapper${NC}"
+
+# We write this DIRECTLY to /mnt so it definitely exists
+mkdir -p /mnt/usr/local/bin
+
+cat <<'WRAPPER' > /mnt/usr/local/bin/hypr-run
+#!/bin/bash
+cd ~
+
+# Define Log File
+LOG="/tmp/hypr-run.log"
+echo "Starting Wrapper at $(date)" > "$LOG"
+
+# 1. VirtualBox / VM Detection
+# We force software rendering if we see VirtualBox or VMware
+if lspci | grep -i "VirtualBox" >> "$LOG" 2>&1 || lspci | grep -i "VMware" >> "$LOG" 2>&1; then
+    echo "  -> VM Detected. Forcing software rendering." >> "$LOG"
+    export WLR_NO_HARDWARE_CURSORS=1
+    export WLR_RENDERER_ALLOW_SOFTWARE=1
+fi
+
+# 2. Nvidia Detection
+if lspci | grep -i "NVIDIA" >> "$LOG" 2>&1; then
+    echo "  -> Nvidia Detected. Exporting variables." >> "$LOG"
+    export LIBVA_DRIVER_NAME=nvidia
+    export XDG_SESSION_TYPE=wayland
+    export GBM_BACKEND=nvidia-drm
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+fi
+
+# 3. Launch Hyprland
+# We execute it and redirect stderr to the log so you can see crashes
+echo "  -> Launching Hyprland..." >> "$LOG"
+exec Hyprland >> "$LOG" 2>&1
+WRAPPER
+
+# Make it executable immediately
+chmod +x /mnt/usr/local/bin/hypr-run
+
+# ==============================================================================
+# 8. System Config (Chroot)
+# ==============================================================================
+echo -e "${GREEN}[8/10] System Configuration${NC}"
 
 cat <<EOF > /mnt/setup_internal.sh
 #!/bin/bash
@@ -188,15 +227,12 @@ useradd -m -G wheel -s /bin/bash "$NEW_USER"
 echo "$NEW_USER:$PASSWORD" | chpasswd
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel_auth
 
-# Standard mkinitcpio hooks (No forced MODULES)
 sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt lvm2 filesystems resume fsck)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
 # GRUB Setup
 LUKS_UUID=\$(blkid -s UUID -o value $P3)
 GRUB_PARAMS="loglevel=3 quiet cryptdevice=UUID=\${LUKS_UUID}:cryptlvm root=/dev/mapper/ArchVG-root resume=/dev/mapper/ArchVG-swap"
-[ "$IS_NVIDIA" = true ] && GRUB_PARAMS="\$GRUB_PARAMS nvidia_drm.modeset=1"
-
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"\${GRUB_PARAMS}\"|" /etc/default/grub
 
 grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
@@ -210,9 +246,9 @@ arch-chroot /mnt ./setup_internal.sh
 rm /mnt/setup_internal.sh
 
 # ==============================================================================
-# 8. GUI & Essentials
+# 9. GUI & Essentials
 # ==============================================================================
-echo -e "${GREEN}[8/10] Installing Hyprland & Essentials${NC}"
+echo -e "${GREEN}[9/10] Installing Hyprland & Essentials${NC}"
 
 cat <<EOF > /mnt/setup_gui.sh
 #!/bin/bash
@@ -241,41 +277,6 @@ mount -a
 chmod a+rx /.snapshots
 chown :wheel /.snapshots
 
-# ------------------------------------------------------------------------------
-# HYPRLAND RUNTIME WRAPPER
-# This script runs EVERY time you log in to check for VM/Nvidia environment
-# ------------------------------------------------------------------------------
-cat <<WRAPPER > /usr/local/bin/wrapped-hyprland
-#!/bin/bash
-cd ~
-
-LOG="\$HOME/hyprland-log.txt"
-echo "Starting Hyprland at \$(date)" > "\$LOG"
-
-# 1. VirtualBox / VM Detection (Software Rendering Fallback)
-if lspci | grep -i "VirtualBox" >> "\$LOG" 2>&1 || lspci | grep -i "VMware" >> "\$LOG" 2>&1; then
-    echo "  -> VM Detected. Enabling software rendering." >> "\$LOG"
-    export WLR_NO_HARDWARE_CURSORS=1
-    export WLR_RENDERER_ALLOW_SOFTWARE=1
-fi
-
-# 2. Nvidia Detection
-if lspci | grep -i "NVIDIA" >> "\$LOG" 2>&1; then
-    echo "  -> Nvidia Detected. Exporting variables." >> "\$LOG"
-    export LIBVA_DRIVER_NAME=nvidia
-    export XDG_SESSION_TYPE=wayland
-    export GBM_BACKEND=nvidia-drm
-    export __GLX_VENDOR_LIBRARY_NAME=nvidia
-fi
-
-# 3. Launch
-echo "  -> Executing Hyprland..." >> "\$LOG"
-# Redirect stderr to log so we can see CRASHES
-exec Hyprland >> "\$LOG" 2>&1
-WRAPPER
-
-chmod +x /usr/local/bin/wrapped-hyprland
-
 echo "Configuring Greetd..."
 mkdir -p /etc/greetd
 cat <<TOML > /etc/greetd/config.toml
@@ -283,8 +284,8 @@ cat <<TOML > /etc/greetd/config.toml
 vt = 1
 
 [default_session]
-# Launch the runtime wrapper
-command = "agreety --cmd /usr/local/bin/wrapped-hyprland"
+# Pointing to the wrapper we created in Step 7
+command = "agreety --cmd /usr/local/bin/hypr-run"
 user = "greeter"
 TOML
 
@@ -298,9 +299,9 @@ arch-chroot /mnt ./setup_gui.sh
 rm /mnt/setup_gui.sh
 
 # ==============================================================================
-# 9. Reboot
+# 10. Reboot
 # ==============================================================================
-echo -e "${GREEN}[9/10] Installation Finished!${NC}"
+echo -e "${GREEN}[10/10] Installation Finished!${NC}"
 umount -R /mnt
 
 echo -e "${GREEN}Rebooting in 5 seconds...${NC}"
