@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-#  Custom Arch Linux Installer - Pure Wayland (Safe Wrapper Fix)
-#  Fixes: Prevents 'file not found' errors by generating wrapper separately
+#  Custom Arch Linux Installer - Pure Wayland (VM Crash Fix)
+#  Fixes: Installs vulkan-swrast for VirtualBox software rendering
 # ==============================================================================
 
 # Colors
@@ -14,7 +14,7 @@ NC='\033[0m'
 # Stop on errors immediately
 set -e
 
-echo -e "${BLUE}Starting Arch Installer (Final Fix)...${NC}"
+echo -e "${BLUE}Starting Arch Installer (VM Crash Fix)...${NC}"
 
 # ==============================================================================
 # 1. Keymap & Network
@@ -172,18 +172,18 @@ mkdir -p /mnt/usr/local/bin
 
 cat <<'WRAPPER' > /mnt/usr/local/bin/hypr-run
 #!/bin/bash
-cd ~
-
-# Define Log File
-LOG="/tmp/hypr-run.log"
-echo "Starting Wrapper at $(date)" > "$LOG"
+# Log file unique to the user running it
+LOG="/tmp/hypr-run-${USER}.log"
+echo "--- Starting Wrapper at $(date) ---" > "$LOG"
 
 # 1. VirtualBox / VM Detection
-# We force software rendering if we see VirtualBox or VMware
 if lspci | grep -i "VirtualBox" >> "$LOG" 2>&1 || lspci | grep -i "VMware" >> "$LOG" 2>&1; then
     echo "  -> VM Detected. Forcing software rendering." >> "$LOG"
+    # These flags are critical for VirtualBox without 3D Acceleration
     export WLR_NO_HARDWARE_CURSORS=1
     export WLR_RENDERER_ALLOW_SOFTWARE=1
+    # Pixman is the software renderer fallback for wlroots
+    export WLR_RENDERER=pixman
 fi
 
 # 2. Nvidia Detection
@@ -196,7 +196,6 @@ if lspci | grep -i "NVIDIA" >> "$LOG" 2>&1; then
 fi
 
 # 3. Launch Hyprland
-# We execute it and redirect stderr to the log so you can see crashes
 echo "  -> Launching Hyprland..." >> "$LOG"
 exec Hyprland >> "$LOG" 2>&1
 WRAPPER
@@ -261,7 +260,8 @@ echo "Installing Audio..."
 pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol bluez bluez-utils
 
 echo "Installing Desktop..."
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd
+# ADDED: vulkan-swrast (Essential for VirtualBox CPU rendering)
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd vulkan-swrast mesa mesa-utils
 
 echo "Installing Fonts..."
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
