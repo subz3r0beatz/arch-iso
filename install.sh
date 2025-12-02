@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-#  Custom Arch Linux Installer - Pure Wayland (VM Crash Fix)
-#  Fixes: Installs vulkan-swrast for VirtualBox software rendering
+#  Custom Arch Linux Installer - Pure Wayland (VM Loop Fix)
+#  Fixes: Uses LIBGL_ALWAYS_SOFTWARE, sets XDG vars, and uses dbus-launch
 # ==============================================================================
 
 # Colors
@@ -14,7 +14,7 @@ NC='\033[0m'
 # Stop on errors immediately
 set -e
 
-echo -e "${BLUE}Starting Arch Installer (VM Crash Fix)...${NC}"
+echo -e "${BLUE}Starting Arch Installer (VM Loop Fix)...${NC}"
 
 # ==============================================================================
 # 1. Keymap & Network
@@ -163,7 +163,7 @@ pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim ne
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # ==============================================================================
-# 7. Generate Wrapper Script (Safe Method)
+# 7. Generate Wrapper Script (Full Session Setup)
 # ==============================================================================
 echo -e "${GREEN}[7/10] Creating Startup Wrapper${NC}"
 
@@ -176,28 +176,37 @@ cat <<'WRAPPER' > /mnt/usr/local/bin/hypr-run
 LOG="/tmp/hypr-run-${USER}.log"
 echo "--- Starting Wrapper at $(date) ---" > "$LOG"
 
+# Set standard Wayland session variables (Prevents immediate exit)
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+
 # 1. VirtualBox / VM Detection
 if lspci | grep -i "VirtualBox" >> "$LOG" 2>&1 || lspci | grep -i "VMware" >> "$LOG" 2>&1; then
     echo "  -> VM Detected. Forcing software rendering." >> "$LOG"
-    # These flags are critical for VirtualBox without 3D Acceleration
+    
+    # Fix invisible cursor
     export WLR_NO_HARDWARE_CURSORS=1
+    
+    # Force Software Rendering (The heavy hammer for VirtualBox)
+    export LIBGL_ALWAYS_SOFTWARE=1
     export WLR_RENDERER_ALLOW_SOFTWARE=1
-    # Pixman is the software renderer fallback for wlroots
-    export WLR_RENDERER=pixman
+    
+    # NOTE: We removed 'pixman' as it causes issues on newer Hyprland
 fi
 
 # 2. Nvidia Detection
 if lspci | grep -i "NVIDIA" >> "$LOG" 2>&1; then
     echo "  -> Nvidia Detected. Exporting variables." >> "$LOG"
     export LIBVA_DRIVER_NAME=nvidia
-    export XDG_SESSION_TYPE=wayland
     export GBM_BACKEND=nvidia-drm
     export __GLX_VENDOR_LIBRARY_NAME=nvidia
 fi
 
 # 3. Launch Hyprland
-echo "  -> Launching Hyprland..." >> "$LOG"
-exec Hyprland >> "$LOG" 2>&1
+# Using dbus-launch prevents session crashes
+echo "  -> Launching Hyprland with dbus-launch..." >> "$LOG"
+exec dbus-launch --exit-with-session Hyprland >> "$LOG" 2>&1
 WRAPPER
 
 # Make it executable immediately
@@ -260,8 +269,8 @@ echo "Installing Audio..."
 pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol bluez bluez-utils
 
 echo "Installing Desktop..."
-# ADDED: vulkan-swrast (Essential for VirtualBox CPU rendering)
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd vulkan-swrast mesa mesa-utils
+# ADDED: qt5-wayland/qt6-wayland (Helps prevent random app crashes on start)
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd vulkan-swrast mesa mesa-utils qt5-wayland qt6-wayland
 
 echo "Installing Fonts..."
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
