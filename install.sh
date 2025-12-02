@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #  Custom Arch Linux Installer - Pure Wayland Edition
-#  Changes: Replaced SDDM (X11) with Greetd (Wayland/TTY)
+#  Fixes: Added auto-detection for VirtualBox to force Software Rendering
 # ==============================================================================
 
 # Colors
@@ -134,7 +134,7 @@ mount "$P1" /mnt/efi
 swapon /dev/ArchVG/swap
 
 # ==============================================================================
-# 5. Hardware Detection & Early KMS Setup
+# 5. Hardware Detection (Standard Drivers)
 # ==============================================================================
 echo -e "${GREEN}[5/10] Detecting Hardware${NC}"
 UCODE=""
@@ -142,30 +142,26 @@ grep -q "Intel" /proc/cpuinfo && UCODE="intel-ucode"
 grep -q "AMD" /proc/cpuinfo && UCODE="amd-ucode"
 
 GPU_DRIVER="mesa"
-# Modules to add to mkinitcpio for Early KMS (Fixes login loop)
-GPU_MODULES="" 
 IS_NVIDIA=false
 
 if lspci | grep -i "NVIDIA"; then
-    echo "  -> Nvidia detected (Adding Early KMS modules)"
+    echo "  -> Nvidia detected"
     GPU_DRIVER="$GPU_DRIVER nvidia nvidia-utils nvidia-settings"
-    GPU_MODULES="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
     IS_NVIDIA=true
 elif lspci | grep -i "AMD" | grep -i "VGA"; then
-    echo "  -> AMD detected (Adding Early KMS modules)"
+    echo "  -> AMD detected"
     GPU_DRIVER="$GPU_DRIVER vulkan-radeon xf86-video-amdgpu"
-    GPU_MODULES="amdgpu"
 elif lspci | grep -i "Intel" | grep -i "VGA"; then
-    echo "  -> Intel detected (Adding Early KMS modules)"
+    echo "  -> Intel detected"
     GPU_DRIVER="$GPU_DRIVER vulkan-intel intel-media-driver"
-    GPU_MODULES="i915"
 fi
 
 # ==============================================================================
 # 6. Install Base System
 # ==============================================================================
 echo -e "${GREEN}[6/10] Installing Packages...${NC}"
-pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring $UCODE $GPU_DRIVER
+# pciutils is still useful for debugging, so I kept it
+pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring pciutils $UCODE $GPU_DRIVER
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
@@ -187,17 +183,12 @@ echo "$NEW_HOSTNAME" > /etc/hostname
 echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 echo "127.0.0.1 localhost $NEW_HOSTNAME" >> /etc/hosts
 
-# NOTE: No X11 keyboard config needed for Greetd (it uses vconsole keymap)
-
 echo "root:$PASSWORD" | chpasswd
 useradd -m -G wheel -s /bin/bash "$NEW_USER"
 echo "$NEW_USER:$PASSWORD" | chpasswd
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel_auth
 
-# FIX: Early KMS (Inject GPU modules into mkinitcpio)
-# Replaces MODULES=() with MODULES=(nvidia ...) etc.
-sed -i "s/^MODULES=()/MODULES=($GPU_MODULES)/" /etc/mkinitcpio.conf
-
+# Standard mkinitcpio hooks (No forced MODULES)
 sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt lvm2 filesystems resume fsck)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
@@ -234,7 +225,6 @@ echo "Installing Audio..."
 pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol bluez bluez-utils
 
 echo "Installing Desktop..."
-# Switched sddm -> greetd
 pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd
 
 echo "Installing Fonts..."
@@ -253,15 +243,23 @@ chown :wheel /.snapshots
 
 echo "Configuring Greetd (Pure Wayland Login)..."
 mkdir -p /etc/greetd
+
+# Detect VirtualBox and force software rendering if needed
+HYPR_CMD="Hyprland"
+
+if lspci | grep -i "VirtualBox" &>/dev/null; then
+    echo "VirtualBox detected: Enabling software rendering fallback."
+    # WLR_RENDERER_ALLOW_SOFTWARE=1 : Allows Hyprland to run without GPU
+    # WLR_NO_HARDWARE_CURSORS=1     : Fixes invisible cursor in VM
+    HYPR_CMD="env WLR_NO_HARDWARE_CURSORS=1 WLR_RENDERER_ALLOW_SOFTWARE=1 Hyprland"
+fi
+
 cat <<TOML > /etc/greetd/config.toml
 [terminal]
-# The VT to run the greeter on.
 vt = 1
 
 [default_session]
-# 'agreety' is the built-in minimal text greeter.
-# It launches Hyprland immediately after login.
-command = "agreety --cmd Hyprland"
+command = "agreety --cmd '\$HYPR_CMD'"
 user = "greeter"
 TOML
 
