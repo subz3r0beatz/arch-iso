@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-#  Custom Arch Linux Installer - Final Robust Edition
-#  Features: Password Verification, Error Handling, Secure Boot setup
+#  Custom Arch Linux Installer - Final Version
+#  Fixes: Corrected Font Package Name
 # ==============================================================================
 
 # Colors
@@ -45,7 +45,7 @@ if ! ping -c 1 archlinux.org &> /dev/null; then
 fi
 
 # ==============================================================================
-# 2. Disk & User Config (With Password Verification)
+# 2. Disk & User Config
 # ==============================================================================
 echo -e "${GREEN}[2/10] Configuration${NC}"
 lsblk -d -p -n -o NAME,SIZE,MODEL
@@ -216,7 +216,7 @@ echo -e "${GREEN}[8/10] Installing Hyprland & Essentials${NC}"
 
 cat <<EOF > /mnt/setup_gui.sh
 #!/bin/bash
-set -e # Exit immediately if any package fails
+set -e # Exit immediately if pacman fails
 
 echo "Refreshing keys..."
 pacman -Sy --noconfirm archlinux-keyring
@@ -228,7 +228,8 @@ echo "Installing Desktop..."
 pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs sddm
 
 echo "Installing Fonts..."
-pacman -S --noconfirm ttf-jetbrains-mono-nerd-font noto-fonts noto-fonts-emoji
+# FIXED: changed 'ttf-jetbrains-mono-nerd-font' to 'ttf-jetbrains-mono-nerd'
+pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
 
 echo "Installing Snapper..."
 pacman -S --noconfirm snapper snap-pac
