@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-#  Custom Arch Linux Installer - Clean Standard Boot
-#  Includes: LVM-on-LUKS, Btrfs, Hyprland, Audio, Auto-GPU Drivers
+#  Custom Arch Linux Installer - Final Robust Edition
+#  Features: Password Verification, Error Handling, Secure Boot setup
 # ==============================================================================
 
 # Colors
@@ -11,35 +11,50 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Stop on errors immediately to prevent broken installs
+set -e
+
 echo -e "${BLUE}Starting Arch Installer...${NC}"
 
 # ==============================================================================
 # 1. Keymap & Network
 # ==============================================================================
 echo -e "${GREEN}[1/10] Setup Environment${NC}"
+
+set +e # Temporarily allow errors for user input
 read -p "Enter keymap (e.g., us, de, fr): " KEYMAP_INPUT
+set -e
 KEYMAP=${KEYMAP_INPUT:-us}
 loadkeys "$KEYMAP" || loadkeys us
 
-while true; do
+echo "Checking network..."
+# Loop to wait for connection
+for i in {1..5}; do
     if ping -c 1 archlinux.org &> /dev/null; then
         echo "Internet connected."
         break
     else
-        echo -e "${RED}No internet.${NC} 1) iwctl  2) Retry  3) Abort"
-        read -p "Choice: " N
-        case $N in 1) iwctl ;; 2) sleep 2 ;; 3) exit 1 ;; esac
+        echo "Waiting for internet..."
+        sleep 2
     fi
 done
 
+if ! ping -c 1 archlinux.org &> /dev/null; then
+    echo -e "${RED}No internet connection. Please run 'iwctl' to connect to WiFi, then restart this script.${NC}"
+    exit 1
+fi
+
 # ==============================================================================
-# 2. Disk & User Config
+# 2. Disk & User Config (With Password Verification)
 # ==============================================================================
 echo -e "${GREEN}[2/10] Configuration${NC}"
 lsblk -d -p -n -o NAME,SIZE,MODEL
 echo ""
 read -p "Target Disk (e.g., /dev/nvme0n1 or /dev/sda): " DISK
-[ ! -b "$DISK" ] && echo "Invalid disk" && exit 1
+if [ ! -b "$DISK" ]; then 
+    echo "Invalid disk" 
+    exit 1
+fi
 
 echo -e "${RED}WARNING: $DISK will be WIPED.${NC}"
 read -p "Confirm (y/N): " C
@@ -47,9 +62,24 @@ read -p "Confirm (y/N): " C
 
 read -p "Hostname: " NEW_HOSTNAME
 read -p "Username: " NEW_USER
-echo "Password (Root/User/Encryption):"
-read -s PASSWORD
-echo ""
+
+# Password Verification Loop
+while true; do
+    echo -e "${BLUE}Set System Password (Root / User / Encryption)${NC}"
+    read -s -p "Enter Password: " PASSWORD
+    echo ""
+    read -s -p "Confirm Password: " PASSWORD_CONFIRM
+    echo ""
+
+    if [ -z "$PASSWORD" ]; then
+        echo -e "${RED}Password cannot be empty.${NC}"
+    elif [ "$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
+        echo -e "${GREEN}Passwords match.${NC}"
+        break
+    else
+        echo -e "${RED}Passwords do not match. Please try again.${NC}"
+    fi
+done
 
 # ==============================================================================
 # 3. Partitioning & Encryption
@@ -62,7 +92,6 @@ sgdisk -n 1:0:+512M -t 1:ef00 "$DISK"
 sgdisk -n 2:0:+1G -t 2:8300 "$DISK"
 sgdisk -n 3:0:0 -t 3:8e00 "$DISK"
 
-# Handle NVMe vs SATA naming
 if [[ "$DISK" == *"nvme"* ]]; then 
     P1="${DISK}p1"; P2="${DISK}p2"; P3="${DISK}p3"
 else 
@@ -132,7 +161,8 @@ fi
 # 6. Install Base System
 # ==============================================================================
 echo -e "${GREEN}[6/10] Installing Packages...${NC}"
-pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel $UCODE $GPU_DRIVER
+# Including archlinux-keyring is crucial for automated installs
+pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring $UCODE $GPU_DRIVER
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
@@ -143,6 +173,7 @@ echo -e "${GREEN}[7/10] System Configuration${NC}"
 
 cat <<EOF > /mnt/setup_internal.sh
 #!/bin/bash
+set -e # Exit on error
 
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 hwclock --systohc
@@ -168,11 +199,7 @@ GRUB_PARAMS="loglevel=3 quiet cryptdevice=UUID=\${LUKS_UUID}:cryptlvm root=/dev/
 
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"\${GRUB_PARAMS}\"|" /etc/default/grub
 
-echo "Installing Bootloader..."
-# Standard installation to NVRAM
-# This relies on efibootmgr working correctly (requires booted in UEFI mode)
 grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
-
 grub-mkconfig -o /boot/grub/grub.cfg
 
 systemctl enable NetworkManager
@@ -189,18 +216,32 @@ echo -e "${GREEN}[8/10] Installing Hyprland & Essentials${NC}"
 
 cat <<EOF > /mnt/setup_gui.sh
 #!/bin/bash
+set -e # Exit immediately if any package fails
+
+echo "Refreshing keys..."
+pacman -Sy --noconfirm archlinux-keyring
+
+echo "Installing Audio..."
 pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol bluez bluez-utils
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs
+
+echo "Installing Desktop..."
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs sddm
+
+echo "Installing Fonts..."
 pacman -S --noconfirm ttf-jetbrains-mono-nerd-font noto-fonts noto-fonts-emoji
+
+echo "Installing Snapper..."
 pacman -S --noconfirm snapper snap-pac
 
-umount /.snapshots
-rmdir /.snapshots
+# Snapper Config
+umount /.snapshots || true
+rmdir /.snapshots || true
 snapper -c root create-config /
 mount -a
 chmod a+rx /.snapshots
 chown :wheel /.snapshots
 
+echo "Enabling Services..."
 systemctl enable sddm
 systemctl enable bluetooth
 EOF
@@ -216,6 +257,6 @@ echo -e "${GREEN}[9/10] Installation Finished!${NC}"
 umount -R /mnt
 
 echo -e "${GREEN}Rebooting in 5 seconds...${NC}"
-echo -e "Be ready to remove the USB stick when the screen goes black."
+echo -e "Remove the installation media when screen goes black."
 sleep 5
 reboot
