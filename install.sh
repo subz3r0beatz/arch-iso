@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #  Custom Arch Linux Installer - Final Version
-#  Fixes: Corrected Font Package Name
+#  Fixes: Added '--no-dbus' to Snapper to fix fatal library error
 # ==============================================================================
 
 # Colors
@@ -11,7 +11,7 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Stop on errors immediately to prevent broken installs
+# Stop on errors immediately
 set -e
 
 echo -e "${BLUE}Starting Arch Installer...${NC}"
@@ -28,7 +28,6 @@ KEYMAP=${KEYMAP_INPUT:-us}
 loadkeys "$KEYMAP" || loadkeys us
 
 echo "Checking network..."
-# Loop to wait for connection
 for i in {1..5}; do
     if ping -c 1 archlinux.org &> /dev/null; then
         echo "Internet connected."
@@ -40,7 +39,7 @@ for i in {1..5}; do
 done
 
 if ! ping -c 1 archlinux.org &> /dev/null; then
-    echo -e "${RED}No internet connection. Please run 'iwctl' to connect to WiFi, then restart this script.${NC}"
+    echo -e "${RED}No internet connection. Run 'iwctl' then restart script.${NC}"
     exit 1
 fi
 
@@ -161,7 +160,6 @@ fi
 # 6. Install Base System
 # ==============================================================================
 echo -e "${GREEN}[6/10] Installing Packages...${NC}"
-# Including archlinux-keyring is crucial for automated installs
 pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring $UCODE $GPU_DRIVER
 
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -173,7 +171,7 @@ echo -e "${GREEN}[7/10] System Configuration${NC}"
 
 cat <<EOF > /mnt/setup_internal.sh
 #!/bin/bash
-set -e # Exit on error
+set -e
 
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 hwclock --systohc
@@ -216,7 +214,7 @@ echo -e "${GREEN}[8/10] Installing Hyprland & Essentials${NC}"
 
 cat <<EOF > /mnt/setup_gui.sh
 #!/bin/bash
-set -e # Exit immediately if pacman fails
+set -e
 
 echo "Refreshing keys..."
 pacman -Sy --noconfirm archlinux-keyring
@@ -228,16 +226,15 @@ echo "Installing Desktop..."
 pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs sddm
 
 echo "Installing Fonts..."
-# FIXED: changed 'ttf-jetbrains-mono-nerd-font' to 'ttf-jetbrains-mono-nerd'
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
 
 echo "Installing Snapper..."
 pacman -S --noconfirm snapper snap-pac
 
-# Snapper Config
+# Snapper Config (FIX: Added --no-dbus)
 umount /.snapshots || true
 rmdir /.snapshots || true
-snapper -c root create-config /
+snapper --no-dbus -c root create-config /
 mount -a
 chmod a+rx /.snapshots
 chown :wheel /.snapshots
