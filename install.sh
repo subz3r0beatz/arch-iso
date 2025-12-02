@@ -2,7 +2,7 @@
 
 # ==============================================================================
 #  Custom Arch Linux Installer - Pure Wayland Edition
-#  Fixes: Added auto-detection for VirtualBox to force Software Rendering
+#  Fixes: Runtime Wrapper for robust VM/Nvidia detection & Logging
 # ==============================================================================
 
 # Colors
@@ -241,25 +241,50 @@ mount -a
 chmod a+rx /.snapshots
 chown :wheel /.snapshots
 
-echo "Configuring Greetd (Pure Wayland Login)..."
-mkdir -p /etc/greetd
+# ------------------------------------------------------------------------------
+# HYPRLAND RUNTIME WRAPPER
+# This script runs EVERY time you log in to check for VM/Nvidia environment
+# ------------------------------------------------------------------------------
+cat <<WRAPPER > /usr/local/bin/wrapped-hyprland
+#!/bin/bash
+cd ~
 
-# Detect VirtualBox and force software rendering if needed
-HYPR_CMD="Hyprland"
+LOG="\$HOME/hyprland-log.txt"
+echo "Starting Hyprland at \$(date)" > "\$LOG"
 
-if lspci | grep -i "VirtualBox" &>/dev/null; then
-    echo "VirtualBox detected: Enabling software rendering fallback."
-    # WLR_RENDERER_ALLOW_SOFTWARE=1 : Allows Hyprland to run without GPU
-    # WLR_NO_HARDWARE_CURSORS=1     : Fixes invisible cursor in VM
-    HYPR_CMD="env WLR_NO_HARDWARE_CURSORS=1 WLR_RENDERER_ALLOW_SOFTWARE=1 Hyprland"
+# 1. VirtualBox / VM Detection (Software Rendering Fallback)
+if lspci | grep -i "VirtualBox" >> "\$LOG" 2>&1 || lspci | grep -i "VMware" >> "\$LOG" 2>&1; then
+    echo "  -> VM Detected. Enabling software rendering." >> "\$LOG"
+    export WLR_NO_HARDWARE_CURSORS=1
+    export WLR_RENDERER_ALLOW_SOFTWARE=1
 fi
 
+# 2. Nvidia Detection
+if lspci | grep -i "NVIDIA" >> "\$LOG" 2>&1; then
+    echo "  -> Nvidia Detected. Exporting variables." >> "\$LOG"
+    export LIBVA_DRIVER_NAME=nvidia
+    export XDG_SESSION_TYPE=wayland
+    export GBM_BACKEND=nvidia-drm
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+fi
+
+# 3. Launch
+echo "  -> Executing Hyprland..." >> "\$LOG"
+# Redirect stderr to log so we can see CRASHES
+exec Hyprland >> "\$LOG" 2>&1
+WRAPPER
+
+chmod +x /usr/local/bin/wrapped-hyprland
+
+echo "Configuring Greetd..."
+mkdir -p /etc/greetd
 cat <<TOML > /etc/greetd/config.toml
 [terminal]
 vt = 1
 
 [default_session]
-command = "agreety --cmd '\$HYPR_CMD'"
+# Launch the runtime wrapper
+command = "agreety --cmd /usr/local/bin/wrapped-hyprland"
 user = "greeter"
 TOML
 
