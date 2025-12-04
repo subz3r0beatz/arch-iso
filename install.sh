@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# ==============================================================================
-#  Custom Arch Linux Installer - Hardware Edition
-#  Features: No Wrapper Script. Writes Nvidia config to /etc/environment.
-# ==============================================================================
+###############################
+# Custom Arch Linux Installer #
+###############################
 
 # Colors
+YELLOW='\033[0;33m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
@@ -14,119 +14,160 @@ NC='\033[0m'
 # Stop on errors immediately
 set -e
 
-echo -e "${BLUE}Starting Arch Installer (Clean Hardware Edition)...${NC}"
+echo -e "${BLUE}Starting Arch Installer...${NC}"
 
-# ==============================================================================
-# 1. Keymap & Network
-# ==============================================================================
-echo -e "${GREEN}[1/9] Setup Environment${NC}"
+###################
+# 1. Keymap Setup #
+###################
 
-set +e # Temporarily allow errors for user input
-read -p "Enter keymap (e.g., us, de, fr): " KEYMAP_INPUT
-set -e
+echo -e "${BLUE}[1/] Setting Up Keyboard Layout...${NC}"
+
+read -p "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
 KEYMAP=${KEYMAP_INPUT:-us}
 loadkeys "$KEYMAP" || loadkeys us
 
-echo "Checking network..."
+echo -e "${GREEN}Keyboard Setup Finished!${NC}"
+
+####################
+# 2. Network Setup #
+####################
+
+echo -e "${BLUE}[2/] Setting Up Network Connection...${NC}"
+
+echo -e "${YELLOW}Checking Network...${NC}"
 for i in {1..5}; do
-    if ping -c 1 archlinux.org &> /dev/null; then
-        echo "Internet connected."
-        break
-    else
-        echo "Waiting for internet..."
-        sleep 2
-    fi
+  if ping -c 1 archlinux.org &> /dev/null; then
+    echo -e "${GREEN}Internet Connected!${NC}"
+    break
+  else
+    echo -e "${YELLOW}Waiting for internet..."
+    sleep 2
+  fi
 done
 
 if ! ping -c 1 archlinux.org &> /dev/null; then
-    echo -e "${RED}No internet connection. Run 'iwctl' then restart script.${NC}"
-    exit 1
+  echo -e "${RED}No Internet Connection!${NC}\n${YELLOW}(Run 'iwctl' then restart script)${NC}"
+  exit 1
 fi
 
-# ==============================================================================
-# 2. Disk, Partitions & User Config
-# ==============================================================================
-echo -e "${GREEN}[2/9] Configuration${NC}"
+echo -e "${GREEN}Network Setup Finished!${NC}"
+
+#################################
+# 3. Environment Configuration  #
+#################################
+
+echo -e "${BLUE}[3/] Configurating Instalation...${NC}"
+echo -e "${YELLOW}Please Input Choices${NC}\n"
+
+# Disk selection for instalation
+echo -e "${BLUE}Instalation Disk${NC}"
 lsblk -d -p -n -o NAME,SIZE,MODEL
-echo ""
-read -p "Target Disk (e.g., /dev/nvme0n1 or /dev/sda): " DISK
-if [ ! -b "$DISK" ]; then 
-    echo "Invalid disk" 
-    exit 1
+read -p "\nTarget Disk (e.g.: /dev/nvme0n1 or /dev/sda): " DISK
+if [ ! -b "$DISK" ]; then
+  echo -e "${RED}Invalid Disk${NC}\n${YELLOW}(Restart script and input a valid disk)${NC}"
+  exit 1
 fi
 
-echo -e "${RED}WARNING: $DISK will be WIPED.${NC}"
-read -p "Confirm (y/N): " C
-[[ "$C" == "y" ]] || exit 1
+echp -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
+read -p "${YELLOW}Confirm? (WIPE DISK): ${NC}" C
+[[ "$C" == "WIPE DISK" ]] || exit 1
 
-# --- PARTITION SIZE PROMPTS ---
-echo -e "${BLUE}Partition Sizing (Press Enter for defaults)${NC}"
-read -p "EFI Partition Size [512M]: " EFI_INPUT
+# Size selection for partitions
+echo -e "${BLUE}Partition Sizes${NC}"
+
+read -p "EFI Partition Size [Default: 512M]: " EFI_INPUT
 EFI_SIZE=${EFI_INPUT:-512M}
-read -p "Boot Partition Size [1G]: " BOOT_INPUT
-BOOT_SIZE=${BOOT_INPUT:-1G}
-read -p "Swap Size [8G]: " SWAP_INPUT
-SWAP_SIZE=${SWAP_INPUT:-8G}
-echo ""
-# ------------------------------
+
+read -p "BOOT Partition Size [Default: 2G]: " BOOT_INPUT
+BOOT_SIZE=${BOOT_INPUT:-2G}
+
+read -p "SWAP Partition Size [Default: 10G]: " SWAP_INPUT
+SWAP_SIZE=${SWAP_INPUT:-10G}
+
+echo -e "${RED}Using: EFI=${EFI_SIZE}, BOOT=${BOOT_SIZE}, SWAP=${SWAP_SIZE}, ROOT=Remaining${NC}"
+read -p "${YELLOW}Confirm? (YES): ${NC}" C
+[[ "$C" == "YES" ]] || exit 1
+
+# Environment selection (hostname, username, password)
+echo -e "${BLUE}System Environment${NC}"
 
 read -p "Hostname: " NEW_HOSTNAME
 read -p "Username: " NEW_USER
 
-# Password Verification Loop
+# Password verification loop
 while true; do
-    echo -e "${BLUE}Set System Password (Root / User / Encryption)${NC}"
-    read -s -p "Enter Password: " PASSWORD
-    echo ""
-    read -s -p "Confirm Password: " PASSWORD_CONFIRM
-    echo ""
+  echo -e "${BLUE}Set System Password${NC}\n${YELLOW}(Root / User / Encryption)${NC}"
+  read -s -p "Enter Password: " PASSWORD
+  read -s -p "Confirm Password: " PASSWORD_CONFIRM
 
-    if [ -z "$PASSWORD" ]; then
-        echo -e "${RED}Password cannot be empty.${NC}"
-    elif [ "$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
-        echo -e "${GREEN}Passwords match.${NC}"
-        break
-    else
-        echo -e "${RED}Passwords do not match. Please try again.${NC}"
+  if [ -z "$PASSWORD" ]; then
+    echo -e "${RED}Password cannot be empty!${NC}"
+  elif ["$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
+    echo -e "${GREEN}Passwords Match!${NC}"
+
+    read -p "{RED}Show Password? (YES)${NC}"
+    if [[ "$C" == "YES" ]]; then
+      echo -e "${BLUE}${PASSWORD}${NC}"
     fi
+
+    read -p "${YELLOW}Confirm? (YES): ${NC}" C
+    if [[ "$C" == "YES" ]]; then
+      break
+    fi
+  else
+    echo -e "${RED}Passwords do not match!${NC}\n${YELLOW}(Please try again)${NC}"
+  fi
 done
 
-# ==============================================================================
-# 3. Partitioning & Encryption
-# ==============================================================================
-echo -e "${GREEN}[3/9] Wiping & Partitioning${NC}"
+echo -e "${GREEN}Configuration Finished!${NC}"
+
+########################################
+# 4. Partition Formatting & Encryption #
+########################################
+
+echo -e "${BLUE}[4/] Creating & Encrypting Partitions...${NC}"
+
+echo -e "${YELLOW}Wiping Disk...${NC}"
 wipefs -a "$DISK"
 sgdisk -Z "$DISK"
 
+# Use variable for sizes
 sgdisk -n 1:0:+${EFI_SIZE} -t 1:ef00 "$DISK"
 sgdisk -n 2:0:+${BOOT_SIZE} -t 2:8300 "$DISK"
 sgdisk -n 3:0:0 -t 3:8e00 "$DISK"
 
-if [[ "$DISK" == *"nvme"* ]]; then 
-    P1="${DISK}p1"; P2="${DISK}p2"; P3="${DISK}p3"
-else 
-    P1="${DISK}1"; P2="${DISK}2"; P3="${DISK}3"
+if [[ "$DISK" == *"nvme"* ]]; then
+  P1="${DISK}p1"; P2="${DISK}p2"; P3="${DISK}p3"
+else
+  P1="${DISK}1"; P2="${DISK}2"; P3="${DISK}3"
 fi
 
-echo "Encrypting drive..."
-echo -n "$PASSWORD" | cryptsetup -q luksFormat "$P3"
-echo -n "$PASSWORD" | cryptsetup open "$P3" cryptlvm -
+echo -e "${YELLOW}Encrypting Drive...${NC}"
+echo -e -n "$PASSWORD" | cryptsetup -q luksFormat "$P3"
+echo -e -n "$PASSWORD" | cryptsetup open "$P3" cryptlvm -
 
-# LVM & Formatting
+# LVM and formatting
 pvcreate /dev/mapper/cryptlvm
 vgcreate ArchVG /dev/mapper/cryptlvm
+
+# Use variable for swap size
 lvcreate -L ${SWAP_SIZE} -n swap ArchVG
 lvcreate -l 100%FREE -n root ArchVG
 
+echo -e "${YELLOW}Formatting Partitions...${NC}"
 mkfs.fat -F32 "$P1"
 mkfs.ext4 "$P2"
 mkswap /dev/ArchVG/swap
 mkfs.btrfs /dev/ArchVG/root
 
-# ==============================================================================
-# 4. Mounting (Btrfs Subvolumes)
-# ==============================================================================
-echo -e "${GREEN}[4/9] Subvolumes & Mounting${NC}"
+echo -e "${GREEN}Partition Creation Finished!${NC}"
+
+#######################
+# 5. Btrfs Subvolumes #
+#######################
+
+echo -e "${BLUE}[5/] Creating Btrfs Subvolumes...${NC}"
+
 mount /dev/ArchVG/root /mnt
 btrfs subvolume create /mnt/@
 btrfs subvolume create /mnt/@home
@@ -134,117 +175,145 @@ btrfs subvolume create /mnt/@var
 btrfs subvolume create /mnt/@snapshots
 umount /mnt
 
-MOUNT_OPTS="noatime,compress=zstd,space_cache=v2"
-mount -o $MOUNT_OPTS,subvol=@ /dev/ArchVG/root /mnt
+echo -e "${GREEN}Subvolumes Creation Finished!${NC}"
+
+###############
+# 6. Mounting #
+###############
+
+echo -e "${BLUE}[6/] Mounting Partitions & Subvolumes...${NC}"
+
+MOUNT_OPTIONS="noatime,compress=zstd,space_cache=v2"
+mount -o $MOUNT_OPTIONS,subvol=@ /dev/ArchVG/root /mnt
 mkdir -p /mnt/{boot,efi,home,var,.snapshots}
-mount -o $MOUNT_OPTS,subvol=@home /dev/ArchVG/root /mnt/home
-mount -o $MOUNT_OPTS,subvol=@var /dev/ArchVG/root /mnt/var
-mount -o $MOUNT_OPTS,subvol=@snapshots /dev/ArchVG/root /mnt/.snapshots
+mount -o $MOUNT_OPTIONS,subvol=@home /dev/ArchVG/root /mnt/home
+mount -o $MOUNT_OPTIONS,subvol=@var /dev/ArchVG/root /mnt/var
+mount -o $MOUNT_OPTIONS,subvol=@snapshots /dev/ArchVG/root /mnt/.snapshots
 mount "$P2" /mnt/boot
 mount "$P1" /mnt/efi
 swapon /dev/ArchVG/swap
 
-# ==============================================================================
-# 5. Hardware Detection (GPU Only)
-# ==============================================================================
-echo -e "${GREEN}[5/9] Detecting Hardware${NC}"
-UCODE=""
-grep -q "Intel" /proc/cpuinfo && UCODE="intel-ucode"
-grep -q "AMD" /proc/cpuinfo && UCODE="amd-ucode"
+echo -e "${GREEN}Mountpoint Setup Finished!${NC}"
 
-GPU_DRIVER="mesa"
-IS_NVIDIA=false
+##########################
+# 7. Install Base System #
+##########################
 
-if lspci | grep -i "NVIDIA"; then
-    echo "  -> Nvidia detected"
-    GPU_DRIVER="$GPU_DRIVER nvidia nvidia-utils nvidia-settings"
-    IS_NVIDIA=true
-elif lspci | grep -i "AMD" | grep -i "VGA"; then
-    echo "  -> AMD detected"
-    GPU_DRIVER="$GPU_DRIVER vulkan-radeon xf86-video-amdgpu"
-elif lspci | grep -i "Intel" | grep -i "VGA"; then
-    echo "  -> Intel detected"
-    GPU_DRIVER="$GPU_DRIVER vulkan-intel intel-media-driver"
-fi
+echo -e "${BLUE}[7/] Installing Base System...${NC}"
 
-# ==============================================================================
-# 6. Install Base System
-# ==============================================================================
-echo -e "${GREEN}[6/9] Installing Packages...${NC}"
-# Removed pciutils as we don't need lspci in the final system anymore for wrappers
-pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring $UCODE $GPU_DRIVER
+DRIVERS="mesa mesa-utils intel-ucode vulkan-intel libva-intel-driver vulkan-radeon xf86-video-amdgpu"
+
+pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring $DRIVERS
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
-# ==============================================================================
-# 7. System Config
-# ==============================================================================
-echo -e "${GREEN}[7/9] System Configuration${NC}"
+echo -e "${GREEN}Base System Instalation Finished!${NC}"
+
+###########################
+# 8. System Configuration #
+###########################
+
+echo -e "${BLUE}[8/] Configurating System...${NC}"
 
 cat <<EOF > /mnt/setup_internal.sh
 #!/bin/bash
 set -e
-
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 hwclock --systohc
-echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+echo -e "en_US.UTF-8" > /etc/locale.gen
 locale-gen
-echo "LANG=en_US.UTF-8" > /etc/locale.conf
-echo "$NEW_HOSTNAME" > /etc/hostname
-echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
-echo "127.0.0.1 localhost $NEW_HOSTNAME" >> /etc/hosts
+echo -e "LANG=en_US.UTF-8" > /etc/locale.conf
+echo -e "$NEW_HOSTNAME" > /etc/hostname
+echo -e "KEYMAP=$KEYMAP" > /etc/vconsole.conf
+echo -e "127.0.0.1 localhost $NEW_HOSTNAME" >> /etc/hosts
 
-echo "root:$PASSWORD" | chpasswd
+echo -e "root:$PASSWORD" | chpasswd
 useradd -m -G wheel -s /bin/bash "$NEW_USER"
-echo "$NEW_USER:$PASSWORD" | chpasswd
-echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel_auth
+echo -e "$NEW_USER:$PASSWORD" | chpasswd
+echo -e "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel_auth
 
 sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt lvm2 filesystems resume fsck)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
+# Grub configuration for AMD HD 8730M GPU
 LUKS_UUID=\$(blkid -s UUID -o value $P3)
+
+# 1. Encryption & LVM
 GRUB_PARAMS="loglevel=3 quiet cryptdevice=UUID=\${LUKS_UUID}:cryptlvm root=/dev/mapper/ArchVG-root resume=/dev/mapper/ArchVG-swap"
 
-# Add Kernel Parameter for Nvidia
-if [ "$IS_NVIDIA" = true ]; then
-    GRUB_PARAMS="\$GRUB_PARAMS nvidia_drm.modeset=1"
-fi
+# 2. Force GCN 1.0 (Southern Islands) to use 'amdgpu' driver
+GRUB_PARAMS="\$GRUB_PARAMS radeon.si_support=0 amdgpu.si_support=1"
 
-sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"\${GRUB_PARAMS}\"|" /etc/default/grub
+# End of GPU specific grub configuration
+sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=,*|GRUB_CMDLINE_LINUX_DEFAULT=\"\${GRUB_PARAMS}\"|" /etc/default/grub
 
 grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
 grub-mkconfig -o /boot/grub/grub.cfg
 
 systemctl enable NetworkManager
 
-# --- SET VARIABLES GLOBALLY (No Wrapper needed) ---
-# If Nvidia is detected, write these to /etc/environment
-if [ "$IS_NVIDIA" = true ]; then
-    echo "Setting up Nvidia Environment variables..."
-    echo "LIBVA_DRIVER_NAME=nvidia" >> /etc/environment
-    echo "XDG_SESSION_TYPE=wayland" >> /etc/environment
-    echo "GBM_BACKEND=nvidia-drm" >> /etc/environment
-    echo "__GLX_VENDOR_LIBRARY_NAME=nvidia" >> /etc/environment
-fi
+# Set environment variables
+echo -e "XDG_SESSION_TYPE=wayland" >> /etc/environment
+echo -e "XDG_CURRENT_DESKTOP=Hyprland" >> /etc/environment
+echo -e "XDG_SESSION_DESKTOP=Hyprland" >> /etc/environment
 EOF
 
 chmod +x /mnt/setup_internal.sh
 arch-chroot /mnt ./setup_internal.sh
 rm /mnt/setup_internal.sh
 
-# ==============================================================================
-# 8. GUI, Essentials & Config
-# ==============================================================================
-echo -e "${GREEN}[8/9] Installing Hyprland & Essentials${NC}"
+echo -e "${GREEN}Finished Configurating System!${NC}"
+
+#####################################
+# 9. AUR & Custom Apps Installation #
+#####################################
+
+echo -e "${BLUE}[9/] Installing AUR Helper & Custom Apps...${NC}"
+
+cat <<EOF > /mnt/setup_aur.sh
+#!/bin/bash
+set -e
+
+cd /tmp
+git clone https://aur.archlinux.org/yay.git
+cd yay
+makepkg -si --noconfirm
+
+yay -S --noconfirm walker quickshell-git qt6-wayland
+EOF
+
+chmod +x /mnt/setup_aur.sh
+arch-chroot /mnt su - "$NEW_USER" -c "/setup_aur.sh"
+rm /mnt/setup_aur.sh
+
+echo -e "${GREEN}Finished Installing AUR & Custom Apps!${NC}"
+
+#############################
+# 10. Hyprland & Essentials #
+#############################
+
+echo -e "${BLUE}[10/] Installing Hyprland & Essentials...${NC}"
 
 cat <<EOF > /mnt/setup_gui.sh
 #!/bin/bash
 set -e
 
+# Update archlinux-keyring
 pacman -Sy --noconfirm archlinux-keyring
-pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol bluez bluez-utils
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland wofi dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd mesa mesa-utils qt5-wayland qt6-wayland
+
+# Install sound utilities
+pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol
+
+# Install bluetooth utilities
+pacman -S --noconfirm bluez bluez-utils
+
+# Install hyprland & essentials
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd firefox
+
+# Install fonts
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
+
+# Install auto snapshot utilities
 pacman -S --noconfirm snapper snap-pac
 
 umount /.snapshots || true
@@ -254,58 +323,49 @@ mount -a
 chmod a+rx /.snapshots
 chown :wheel /.snapshots
 
-# --- Generate Hyprland Config ---
-echo "Creating configuration for $NEW_USER..."
+# Setup hyprland configuration
 mkdir -p /home/$NEW_USER/.config/hypr
 
 cat <<CONF > /home/$NEW_USER/.config/hypr/hyprland.conf
 monitor=,preferred,auto,1
 input {
-    kb_layout = $KEYMAP
-    follow_mouse = 1
+  kb_layout = $KEYMAP
+  follow_mouse = 1
 }
 general {
-    gaps_in = 5
-    gaps_out = 10
-    border_size = 2
-    col.active_border = rgba(33ccffee) rgba(00ff99ee) 45deg
-    col.inactive_border = rgba(595959aa)
-    layout = dwindle
+  gaps_in = 3
+  gaps_out = 5
+  border_size = 2
+  col.active_border = rgba(33ccffee) rgba(00ff99ee) 45deg
+  col.inactive_border = rgba(595959aa)
+  layout = dwindle
 }
 decoration {
-    rounding = 5
-    blur {
-        enabled = true
-        size = 3
-        passes = 1
-    }
-    drop_shadow = true
+  rounding = 5
 }
 animations {
-    enabled = yes
-    bezier = myBezier, 0.05, 0.9, 0.1, 1.05
-    animation = windows, 1, 5, myBezier
-    animation = windowsOut, 1, 5, default, popin 80%
-    animation = border, 1, 10, default
-    animation = fade, 1, 5, default
-    animation = workspaces, 1, 5, default
-}
-dwindle {
-    pseudotile = yes
-    preserve_split = yes
+  enabled = yes
 }
 misc {
-    disable_hyprland_logo = true
+  disable_hyprland_logo = true
+  vfr = true
 }
+
+env = DRI_PRIME,1
+
 \$mainMod = SUPER
-bind = \$mainMod, Q, exec, kitty
-bind = \$mainMod, C, killactive,
-bind = \$mainMod, M, exit,
-bind = \$mainMod, E, exec, thunar
-bind = \$mainMod, V, togglefloating,
-bind = \$mainMod, R, exec, wofi --show drun
-bind = \$mainMod, P, pseudo,
-bind = \$mainMod, J, togglesplit,
+bind = \$mainMod, Return, exec, kitty
+bind = \$mainMod, W, killactive,
+bind = \$mainMod, F, exec, thunar
+bind = \$mainMod, T, togglefloating,
+bind = \$mainMod, Y, togglesplit,
+bind = \$mainMod, Space, exec, walker
+
+bind = \$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app
+windowrule = float, ^(gemini-app)$
+
+exec-once = quickshell
+
 bind = \$mainMod, left, movefocus, l
 bind = \$mainMod, right, movefocus, r
 bind = \$mainMod, up, movefocus, u
@@ -314,6 +374,7 @@ bind = \$mainMod, 1, workspace, 1
 bind = \$mainMod, 2, workspace, 2
 bind = \$mainMod, 3, workspace, 3
 bind = \$mainMod, 4, workspace, 4
+bind = \$mainMod, 5, workspace, 5
 bindm = \$mainMod, mouse:272, movewindow
 bindm = \$mainMod, mouse:273, resizewindow
 CONF
@@ -325,8 +386,6 @@ cat <<TOML > /etc/greetd/config.toml
 [terminal]
 vt = 1
 [default_session]
-# No wrapper needed. We just launch Hyprland.
-# Environment variables are already loaded from /etc/environment
 command = "agreety --cmd Hyprland"
 user = "greeter"
 TOML
@@ -339,13 +398,17 @@ chmod +x /mnt/setup_gui.sh
 arch-chroot /mnt ./setup_gui.sh
 rm /mnt/setup_gui.sh
 
-# ==============================================================================
-# 9. Reboot
-# ==============================================================================
-echo -e "${GREEN}[9/9] Installation Finished!${NC}"
+echo -e "${GREEN}Finished Installing Hyprland & Essentials!${NC}"
+
+##############
+# 11. Reboot #
+##############
+
+echo -e "${GREEN}[11/11] Installation Finished!${NC}"
+
 umount -R /mnt
 
-echo -e "${GREEN}Rebooting in 5 seconds...${NC}"
-echo -e "Remove the installation media when screen goes black."
+echp -e "${RED}Rebooting in 5 seconds...${NC}"
 sleep 5
 reboot
+
