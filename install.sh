@@ -276,6 +276,8 @@ cat <<EOF > /mnt/setup_aur.sh
 #!/bin/bash
 set -e
 
+export FAKEROOTDONTTRYSYSV=1
+
 cd /tmp
 git clone https://aur.archlinux.org/yay.git
 cd yay
