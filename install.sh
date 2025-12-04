@@ -205,7 +205,7 @@ echo -e "${BLUE}[7/11] Installing Base System...${NC}"
 
 DRIVERS="mesa mesa-utils intel-ucode vulkan-intel libva-intel-driver vulkan-radeon xf86-video-amdgpu"
 
-pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring $DRIVERS
+pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring go $DRIVERS
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
@@ -281,7 +281,7 @@ git clone https://aur.archlinux.org/yay.git
 cd yay
 makepkg -si --noconfirm
 
-yay -S --noconfirm walker-bin quickshell-git qt6-wayland
+yay -S --noconfirm walker quickshell-git qt6-wayland
 EOF
 
 chmod +x /mnt/setup_aur.sh
