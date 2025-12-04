@@ -20,7 +20,7 @@ echo -e "${BLUE}Starting Arch Installer...${NC}"
 # 1. Keymap Setup #
 ###################
 
-echo -e "${BLUE}[1/] Setting Up Keyboard Layout...${NC}"
+echo -e "${BLUE}[1/11] Setting Up Keyboard Layout...${NC}"
 
 read -p "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
 KEYMAP=${KEYMAP_INPUT:-us}
@@ -32,7 +32,7 @@ echo -e "${GREEN}Keyboard Setup Finished!${NC}"
 # 2. Network Setup #
 ####################
 
-echo -e "${BLUE}[2/] Setting Up Network Connection...${NC}"
+echo -e "${BLUE}[2/11] Setting Up Network Connection...${NC}"
 
 echo -e "${YELLOW}Checking Network...${NC}"
 for i in {1..5}; do
@@ -40,7 +40,7 @@ for i in {1..5}; do
     echo -e "${GREEN}Internet Connected!${NC}"
     break
   else
-    echo -e "${YELLOW}Waiting for internet..."
+    echo -e "${YELLOW}Waiting for internet...${NC}"
     sleep 2
   fi
 done
@@ -56,11 +56,11 @@ echo -e "${GREEN}Network Setup Finished!${NC}"
 # 3. Environment Configuration  #
 #################################
 
-echo -e "${BLUE}[3/] Configurating Instalation...${NC}"
+echo -e "${BLUE}[3/11] Configurating Installation...${NC}"
 echo -e "${YELLOW}Please Input Choices${NC}\n"
 
 # Disk selection for instalation
-echo -e "${BLUE}Instalation Disk${NC}"
+echo -e "${BLUE}Installation Disk${NC}"
 lsblk -d -p -n -o NAME,SIZE,MODEL
 read -p "\nTarget Disk (e.g.: /dev/nvme0n1 or /dev/sda): " DISK
 if [ ! -b "$DISK" ]; then
@@ -68,7 +68,7 @@ if [ ! -b "$DISK" ]; then
   exit 1
 fi
 
-echp -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
+echo -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
 read -p "${YELLOW}Confirm? (WIPE DISK): ${NC}" C
 [[ "$C" == "WIPE DISK" ]] || exit 1
 
@@ -98,14 +98,16 @@ read -p "Username: " NEW_USER
 while true; do
   echo -e "${BLUE}Set System Password${NC}\n${YELLOW}(Root / User / Encryption)${NC}"
   read -s -p "Enter Password: " PASSWORD
+  echo -e ""
   read -s -p "Confirm Password: " PASSWORD_CONFIRM
+  echo -e ""
 
   if [ -z "$PASSWORD" ]; then
     echo -e "${RED}Password cannot be empty!${NC}"
-  elif ["$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
+  elif [ "$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
     echo -e "${GREEN}Passwords Match!${NC}"
 
-    read -p "{RED}Show Password? (YES)${NC}"
+    read -p "${RED}Show Password? (YES)${NC}"
     if [[ "$C" == "YES" ]]; then
       echo -e "${BLUE}${PASSWORD}${NC}"
     fi
@@ -166,7 +168,7 @@ echo -e "${GREEN}Partition Creation Finished!${NC}"
 # 5. Btrfs Subvolumes #
 #######################
 
-echo -e "${BLUE}[5/] Creating Btrfs Subvolumes...${NC}"
+echo -e "${BLUE}[5/11] Creating Btrfs Subvolumes...${NC}"
 
 mount /dev/ArchVG/root /mnt
 btrfs subvolume create /mnt/@
@@ -181,7 +183,7 @@ echo -e "${GREEN}Subvolumes Creation Finished!${NC}"
 # 6. Mounting #
 ###############
 
-echo -e "${BLUE}[6/] Mounting Partitions & Subvolumes...${NC}"
+echo -e "${BLUE}[6/11] Mounting Partitions & Subvolumes...${NC}"
 
 MOUNT_OPTIONS="noatime,compress=zstd,space_cache=v2"
 mount -o $MOUNT_OPTIONS,subvol=@ /dev/ArchVG/root /mnt
@@ -199,7 +201,7 @@ echo -e "${GREEN}Mountpoint Setup Finished!${NC}"
 # 7. Install Base System #
 ##########################
 
-echo -e "${BLUE}[7/] Installing Base System...${NC}"
+echo -e "${BLUE}[7/11] Installing Base System...${NC}"
 
 DRIVERS="mesa mesa-utils intel-ucode vulkan-intel libva-intel-driver vulkan-radeon xf86-video-amdgpu"
 
@@ -207,13 +209,13 @@ pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim ne
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
-echo -e "${GREEN}Base System Instalation Finished!${NC}"
+echo -e "${GREEN}Base System Installation Finished!${NC}"
 
 ###########################
 # 8. System Configuration #
 ###########################
 
-echo -e "${BLUE}[8/] Configurating System...${NC}"
+echo -e "${BLUE}[8/11] Configurating System...${NC}"
 
 cat <<EOF > /mnt/setup_internal.sh
 #!/bin/bash
@@ -268,7 +270,7 @@ echo -e "${GREEN}Finished Configurating System!${NC}"
 # 9. AUR & Custom Apps Installation #
 #####################################
 
-echo -e "${BLUE}[9/] Installing AUR Helper & Custom Apps...${NC}"
+echo -e "${BLUE}[9/11] Installing AUR Helper & Custom Apps...${NC}"
 
 cat <<EOF > /mnt/setup_aur.sh
 #!/bin/bash
@@ -279,7 +281,7 @@ git clone https://aur.archlinux.org/yay.git
 cd yay
 makepkg -si --noconfirm
 
-yay -S --noconfirm walker quickshell-git qt6-wayland
+yay -S --noconfirm walker-bin quickshell-git qt6-wayland
 EOF
 
 chmod +x /mnt/setup_aur.sh
@@ -292,7 +294,7 @@ echo -e "${GREEN}Finished Installing AUR & Custom Apps!${NC}"
 # 10. Hyprland & Essentials #
 #############################
 
-echo -e "${BLUE}[10/] Installing Hyprland & Essentials...${NC}"
+echo -e "${BLUE}[10/11] Installing Hyprland & Essentials...${NC}"
 
 cat <<EOF > /mnt/setup_gui.sh
 #!/bin/bash
@@ -308,13 +310,15 @@ pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucont
 pacman -S --noconfirm bluez bluez-utils
 
 # Install hyprland & essentials
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd firefox
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hypridle hyprlock tlp tlp-rdw brightnessctl dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd firefox
 
 # Install fonts
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
 
 # Install auto snapshot utilities
 pacman -S --noconfirm snapper snap-pac
+
+systemctl enable tlp
 
 umount /.snapshots || true
 rmdir /.snapshots || true
@@ -354,17 +358,27 @@ misc {
 env = DRI_PRIME,1
 
 \$mainMod = SUPER
+
+bindel = ,XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+bindel = ,XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindl = ,XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindel = ,XF86MonBrightnessUp, exec, brightnessctl s 5%+
+bindel = ,XF86MonBrightnessDown, exec, brightnessctl s 5%-
+
 bind = \$mainMod, Return, exec, kitty
 bind = \$mainMod, W, killactive,
 bind = \$mainMod, F, exec, thunar
 bind = \$mainMod, T, togglefloating,
 bind = \$mainMod, Y, togglesplit,
 bind = \$mainMod, Space, exec, walker
+bind = \$mainMod, L, exec, hyprlock
 
 bind = \$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app
 windowrule = float, ^(gemini-app)$
 
 exec-once = quickshell
+exec-once = hypridle
+exec-once = /usr/lib/polkit-kde-authentication-agent-1
 
 bind = \$mainMod, left, movefocus, l
 bind = \$mainMod, right, movefocus, r
@@ -378,6 +392,56 @@ bind = \$mainMod, 5, workspace, 5
 bindm = \$mainMod, mouse:272, movewindow
 bindm = \$mainMod, mouse:273, resizewindow
 CONF
+
+cat <<IDLE > /home/$NEW_USER/.config/hypr/hypridle.conf
+general {
+  lock_cmd = pidof hyprlock || hyprlock
+  before_sleep_cmd = loginctl lock-session
+  after_sleep_cmd = hyprctl dispatch dpms on
+}
+listener {
+  timeout = 300
+  on-timeout = loginctl lock-session
+}
+listener {
+  timeout = 600
+  on-timeout = systemctl suspend
+}
+IDLE
+
+cat <<LOCK > /home/$NEW_USER/.config/hypr/hyprlock.conf
+background {
+  monitor =
+  color = rgba(25, 20, 20, 1.0)
+}
+input-field {
+  monitor =
+  size = 200, 50
+  outline_thickness = 3
+  dots_size = 0.33
+  dots_spacing = 0.15
+  dots_center = true
+  outer_color = rgb(151515)
+  inner_color = rgb(200, 200, 200)
+  font_color = rgb(10, 10, 10)
+  fade_on_empty = true
+  placeholder_text = <i>Input Password...</i>
+  hide_input = false
+  position = 0, -20
+  halign = center
+  valign = center
+}
+label {
+  monitor =
+  text = \$TIME
+  color = rgba(200, 200, 200, 1.0)
+  font_size = 64
+  font_family = Noto Sans
+  position = 0, 80
+  halign = center
+  valign = center
+}
+LOCK
 
 chown -R $NEW_USER:wheel /home/$NEW_USER/.config
 
