@@ -69,8 +69,9 @@ if [ ! -b "$DISK" ]; then
 fi
 
 echo -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
-read -p "${YELLOW}Confirm? (WIPE DISK): ${NC}" C
-[[ "$C" == "WIPE DISK" ]] || exit 1
+echo -ne "${YELLOW}Confir;? (WIPE DISK): ${NC}"
+read CONF_WIPE
+[[ "$CONF_WIPE" == "WIPE DISK" ]] || exit 1
 
 # Size selection for partitions
 echo -e "${BLUE}Partition Sizes${NC}"
@@ -85,8 +86,10 @@ read -p "SWAP Partition Size [Default: 10G]: " SWAP_INPUT
 SWAP_SIZE=${SWAP_INPUT:-10G}
 
 echo -e "${RED}Using: EFI=${EFI_SIZE}, BOOT=${BOOT_SIZE}, SWAP=${SWAP_SIZE}, ROOT=Remaining${NC}"
-read -p "${YELLOW}Confirm? (YES): ${NC}" C
-[[ "$C" == "YES" ]] || exit 1
+
+echo -ne "${YELLOW}Confirm? (YES): ${NC}"
+read CONF_SIZE
+[[ "$CONF_SIZE" == "YES" ]] || exit 1
 
 # Environment selection (hostname, username, password)
 echo -e "${BLUE}System Environment${NC}"
@@ -107,13 +110,15 @@ while true; do
   elif [ "$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
     echo -e "${GREEN}Passwords Match!${NC}"
 
-    read -p "${RED}Show Password? (YES)${NC}"
-    if [[ "$C" == "YES" ]]; then
+	echo -ne "${RED}Show Password? (YES): ${NC}"
+    read SHOW_PASS
+    if [[ "$SHOW_PASS" == "YES" ]]; then
       echo -e "${BLUE}${PASSWORD}${NC}"
     fi
 
-    read -p "${YELLOW}Confirm? (YES): ${NC}" C
-    if [[ "$C" == "YES" ]]; then
+	echo -ne "${YELLOW}Confirm? (YES): ${NC}"
+    read CONF_PASS
+    if [[ "$CONF_PASS" == "YES" ]]; then
       break
     fi
   else
@@ -232,7 +237,7 @@ echo -e "127.0.0.1 localhost $NEW_HOSTNAME" >> /etc/hosts
 echo -e "root:$PASSWORD" | chpasswd
 useradd -m -G wheel -s /bin/bash "$NEW_USER"
 echo -e "$NEW_USER:$PASSWORD" | chpasswd
-echo -e "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel_auth
+echo -e "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_auth
 
 sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt lvm2 filesystems resume fsck)/' /etc/mkinitcpio.conf
 mkinitcpio -P
@@ -312,7 +317,7 @@ pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucont
 pacman -S --noconfirm bluez bluez-utils
 
 # Install hyprland & essentials
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hypridle hyprlock tlp tlp-rdw brightnessctl dunst wl-clipboard polkit-kde-agent kitty thunar gvfs greetd firefox
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hypridle hyprlock tlp tlp-rdw brightnessctl dunst wl-clipboard polkit-kde-agent kitty thunar gvfs xdg-user-dirs greetd firefox
 
 # Install fonts
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
@@ -447,6 +452,8 @@ LOCK
 
 chown -R $NEW_USER:wheel /home/$NEW_USER/.config
 
+su - "$NEW_USER" -c "xdg-user-dirs-update"
+
 mkdir -p /etc/greetd
 cat <<TOML > /etc/greetd/config.toml
 [terminal]
@@ -458,6 +465,8 @@ TOML
 
 systemctl enable greetd
 systemctl enable bluetooth
+
+echo -e "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel_auth
 EOF
 
 chmod +x /mnt/setup_gui.sh
@@ -474,7 +483,7 @@ echo -e "${GREEN}[11/11] Installation Finished!${NC}"
 
 umount -R /mnt
 
-echp -e "${RED}Rebooting in 5 seconds...${NC}"
+echo -e "${RED}Rebooting in 5 seconds...${NC}"
 sleep 5
 reboot
 
