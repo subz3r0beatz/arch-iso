@@ -69,7 +69,7 @@ if [ ! -b "$DISK" ]; then
 fi
 
 echo -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
-echo -ne "${YELLOW}Confir;? (WIPE DISK): ${NC}"
+echo -ne "${YELLOW}Confirm? (WIPE DISK): ${NC}"
 read CONF_WIPE
 [[ "$CONF_WIPE" == "WIPE DISK" ]] || exit 1
 
