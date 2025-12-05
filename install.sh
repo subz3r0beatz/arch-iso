@@ -317,7 +317,7 @@ pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucont
 pacman -S --noconfirm bluez bluez-utils
 
 # Install hyprland & essentials
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hypridle hyprlock tlp tlp-rdw brightnessctl dunst wl-clipboard polkit-kde-agent kitty thunar gvfs xdg-user-dirs greetd firefox
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hyprpaper hypridle hyprlock tlp tlp-rdw brightnessctl dunst wl-clipboard polkit-kde-agent kitty thunar gvfs xdg-user-dirs greetd firefox
 
 # Install fonts
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
@@ -339,10 +339,14 @@ mkdir -p /home/$NEW_USER/.config/hypr
 
 cat <<CONF > /home/$NEW_USER/.config/hypr/hyprland.conf
 monitor=,preferred,auto,1
+
 input {
   kb_layout = $KEYMAP
   follow_mouse = 1
 }
+
+env = DRI_PRIME,1
+
 general {
   gaps_in = 3
   gaps_out = 5
@@ -351,18 +355,20 @@ general {
   col.inactive_border = rgba(595959aa)
   layout = dwindle
 }
+
 decoration {
   rounding = 5
 }
+
 animations {
   enabled = yes
 }
+
 misc {
   disable_hyprland_logo = true
+  disable_splash_rendering = true
   vfr = true
 }
-
-env = DRI_PRIME,1
 
 \$mainMod = SUPER
 
@@ -381,7 +387,7 @@ bind = \$mainMod, Space, exec, walker
 bind = \$mainMod, L, exec, hyprlock
 
 bind = \$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app
-windowrule = float, ^(gemini-app)$
+windowrulev2 = float, class:^(gemini-app)$
 
 exec-once = quickshell
 exec-once = hypridle
