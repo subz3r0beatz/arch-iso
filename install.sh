@@ -328,10 +328,12 @@ pacman -S --noconfirm snapper snap-pac
 systemctl enable tlp
 
 umount /.snapshots || true
-rmdir /.snapshots || true
+rm -rf /.snapshots || true
 snapper --no-dbus -c root create-config /
+btrfs subvolume delete /.snapshots
+mkdir /.snapshots
 mount -a
-chmod a+rx /.snapshots
+chmod 750 /.snapshots
 chown :wheel /.snapshots
 
 # Setup hyprland configuration
@@ -407,7 +409,7 @@ bindm = \$mainMod, mouse:273, resizewindow
 CONF
 
 mkdir -p /home/$NEW_USER/Pictures/Wallpapers
-curl -L -o /home/$NEW_USER/Pictures/Wallpapers/wallpaper.jpg https://raw.githubusercontent.com/subz3r0beatz/arch-iso/refs/heads/main/Wallpaper.jpg
+curl -L -o /home/$NEW_USER/Pictures/Wallpapers/wallpaper.jpg https://raw.githubusercontent.com/subz3r0beatz/arch-iso/main/Wallpaper.jpg
 
 cat <<PAPER > /home/$NEW_USER/.config/hypr/hyprpaper.conf
 preload = /home/$NEW_USER/Pictures/Wallpapers/wallpaper.jpg
