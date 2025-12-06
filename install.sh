@@ -456,7 +456,7 @@ input-field {
 }
 label {
   monitor =
-  text = \$TIME
+  text = \\\$TIME
   color = rgba(200, 200, 200, 1.0)
   font_size = 64
   font_family = Noto Sans
