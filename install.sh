@@ -347,8 +347,6 @@ input {
   follow_mouse = 1
 }
 
-env = DRI_PRIME,1
-
 general {
   gaps_in = 3
   gaps_out = 5
@@ -388,6 +386,7 @@ bind = \$mainMod, Y, togglesplit,
 bind = \$mainMod, Space, exec, walker
 bind = \$mainMod, L, exec, hyprlock
 
+bind = \$mainMod, B, exec, firefox
 bind = \$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app
 windowrulev2 = float, class:^(gemini-app)$
 
