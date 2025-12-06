@@ -370,7 +370,7 @@ misc {
   vfr = true
 }
 
-\$mainMod = SUPER
+\\\$mainMod = SUPER
 
 bindel = ,XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
 bindel = ,XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
@@ -378,33 +378,33 @@ bindl = ,XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 bindel = ,XF86MonBrightnessUp, exec, brightnessctl s 5%+
 bindel = ,XF86MonBrightnessDown, exec, brightnessctl s 5%-
 
-bind = \$mainMod, Return, exec, kitty
-bind = \$mainMod, W, killactive,
-bind = \$mainMod, F, exec, thunar
-bind = \$mainMod, T, togglefloating,
-bind = \$mainMod, Y, togglesplit,
-bind = \$mainMod, Space, exec, walker
-bind = \$mainMod, L, exec, hyprlock
+bind = \\\$mainMod, Return, exec, kitty
+bind = \\\$mainMod, W, killactive,
+bind = \\\$mainMod, F, exec, thunar
+bind = \\\$mainMod, T, togglefloating,
+bind = \\\$mainMod, Y, togglesplit,
+bind = \\\$mainMod, Space, exec, walker
+bind = \\\$mainMod, L, exec, hyprlock
 
-bind = \$mainMod, B, exec, firefox
-bind = \$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app
+bind = \\\$mainMod, B, exec, firefox
+bind = \\\$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app
 windowrulev2 = float, class:^(gemini-app)$
 
 exec-once = quickshell
 exec-once = hypridle
 exec-once = /usr/lib/polkit-kde-authentication-agent-1
 
-bind = \$mainMod, left, movefocus, l
-bind = \$mainMod, right, movefocus, r
-bind = \$mainMod, up, movefocus, u
-bind = \$mainMod, down, movefocus, d
-bind = \$mainMod, 1, workspace, 1
-bind = \$mainMod, 2, workspace, 2
-bind = \$mainMod, 3, workspace, 3
-bind = \$mainMod, 4, workspace, 4
-bind = \$mainMod, 5, workspace, 5
-bindm = \$mainMod, mouse:272, movewindow
-bindm = \$mainMod, mouse:273, resizewindow
+bind = \\\$mainMod, left, movefocus, l
+bind = \\\$mainMod, right, movefocus, r
+bind = \\\$mainMod, up, movefocus, u
+bind = \\\$mainMod, down, movefocus, d
+bind = \\\$mainMod, 1, workspace, 1
+bind = \\\$mainMod, 2, workspace, 2
+bind = \\\$mainMod, 3, workspace, 3
+bind = \\\$mainMod, 4, workspace, 4
+bind = \\\$mainMod, 5, workspace, 5
+bindm = \\\$mainMod, mouse:272, movewindow
+bindm = \\\$mainMod, mouse:273, resizewindow
 CONF
 
 mkdir -p /home/$NEW_USER/Pictures/Wallpapers
