@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo -e "${BLUE}[2/11] Setting Up Network Connection...${NC}"
 
 echo -e "${YELLOW}Checking Network...${NC}"

@@ -16,41 +16,9 @@ set -e
 
 echo -e "${BLUE}Starting Arch Installer...${NC}"
 
-###################
-# 1. Keymap Setup #
-###################
 
-echo -e "${BLUE}[1/11] Setting Up Keyboard Layout...${NC}"
-
-read -p "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
-KEYMAP=${KEYMAP_INPUT:-us}
-loadkeys "$KEYMAP" || loadkeys us
-
-echo -e "${GREEN}Keyboard Setup Finished!${NC}"
-
-####################
-# 2. Network Setup #
-####################
-
-echo -e "${BLUE}[2/11] Setting Up Network Connection...${NC}"
-
-echo -e "${YELLOW}Checking Network...${NC}"
-for i in {1..5}; do
-  if ping -c 1 archlinux.org &> /dev/null; then
-    echo -e "${GREEN}Internet Connected!${NC}"
-    break
-  else
-    echo -e "${YELLOW}Waiting for internet...${NC}"
-    sleep 2
-  fi
-done
-
-if ! ping -c 1 archlinux.org &> /dev/null; then
-  echo -e "${RED}No Internet Connection!${NC}\n${YELLOW}(Run 'iwctl' then restart script)${NC}"
-  exit 1
-fi
-
-echo -e "${GREEN}Network Setup Finished!${NC}"
+chmod +x ./check_network.sh
+./check_network.sh
 
 #################################
 # 3. Environment Configuration  #
