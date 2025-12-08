@@ -21,7 +21,7 @@ done
 
 if ! ping -c 1 archlinux.org &> /dev/null; then
   echo -e "${RED}No Internet Connection!${NC}\n${YELLOW}(Run 'iwctl' then restart script)${NC}"
-  exit 1
+  exit "$i"
 fi
 
 echo -e "${GREEN}Network Setup Finished!${NC}"
