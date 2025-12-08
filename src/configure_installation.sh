@@ -12,7 +12,7 @@ echo -e "${YELLOW}Please Input Choices${NC}\n"
 # Keymap layout selection
 echo -e "${BLUE}Keyboard Layout${NC}"
 
-read -p -r "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
+read -r -p "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
 KEYMAP=${KEYMAP_INPUT:-us}
 loadkeys "$KEYMAP" || loadkeys us
 
@@ -21,7 +21,7 @@ echo -e "${GREEN}Keyboard Setup Finished!${NC}"
 # Disk selection for instalation
 echo -e "${BLUE}Installation Disk${NC}"
 lsblk -d -p -n -o NAME,SIZE,MODEL
-read -p -r "Target Disk (e.g.: /dev/nvme0n1 or /dev/sda): " DISK
+read -r -p "Target Disk (e.g.: /dev/nvme0n1 or /dev/sda): " DISK
 if [ ! -b "$DISK" ]; then
   echo -e "${RED}Invalid Disk${NC}\n${YELLOW}(Restart script and input a valid disk)${NC}"
   exit 1
@@ -35,13 +35,13 @@ read -r CONF_WIPE
 # Size selection for partitions
 echo -e "${BLUE}Partition Sizes${NC}"
 
-read -p -r "EFI Partition Size [Default: 512M]: " EFI_INPUT
+read -r -p "EFI Partition Size [Default: 512M]: " EFI_INPUT
 EFI_SIZE=${EFI_INPUT:-512M}
 
-read -p -r "BOOT Partition Size [Default: 2G]: " BOOT_INPUT
+read -r -p "BOOT Partition Size [Default: 2G]: " BOOT_INPUT
 BOOT_SIZE=${BOOT_INPUT:-2G}
 
-read -p -r "SWAP Partition Size [Default: 10G]: " SWAP_INPUT
+read -r -p "SWAP Partition Size [Default: 10G]: " SWAP_INPUT
 SWAP_SIZE=${SWAP_INPUT:-10G}
 
 echo -e "${RED}Using: EFI=${EFI_SIZE}, BOOT=${BOOT_SIZE}, SWAP=${SWAP_SIZE}, ROOT=Remaining${NC}"
@@ -53,15 +53,15 @@ read -r CONF_SIZE
 # Account selection
 echo -e "${BLUE}System Environment${NC}"
 
-read -p -r "Hostname: " NEW_HOSTNAME
-read -p -r "Username: " NEW_USER
+read -r -p "Hostname: " NEW_HOSTNAME
+read -r -p "Username: " NEW_USER
 
 # Password selection
 while true; do
   echo -e "${BLUE}Set System Password${NC}\n${YELLOW}(Root / User / Encryption)${NC}"
-  read -s -p -r "Enter Password: " PASSWORD
+  read -s -r -p "Enter Password: " PASSWORD
   echo -e ""
-  read -s -p -r "Confirm Password: " PASSWORD_CONFIRM
+  read -s -r -p "Confirm Password: " PASSWORD_CONFIRM
   echo -e ""
 
   if [ -z "$PASSWORD" ]; then
