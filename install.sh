@@ -46,3 +46,11 @@ chmod +x ./src/configure_system.sh
 # 8. Install AUR
 chmod +x ./src/install_aur.sh
 ./src/install_aur.sh
+
+# 9. Install hyprland & essentials
+chmod +x ./src/install_hyprland_\&_essentials.sh
+./src/install_hyprland_\&_essentials.sh
+
+# 10. Reboot
+chmod +x ./src/reboot.sh
+./src/reboot.sh
