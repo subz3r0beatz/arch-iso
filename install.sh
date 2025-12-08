@@ -5,184 +5,41 @@
 ###############################
 
 # Colors
-YELLOW='\033[0;33m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m'
+export YELLOW='\033[0;33m'
+export GREEN='\033[0;32m'
+export BLUE='\033[0;34m'
+export RED='\033[0;31m'
+export NC='\033[0m'
 
-# Stop on errors immediately
 set -e
 
 echo -e "${BLUE}Starting Arch Installer...${NC}"
 
-
+# 1. Check network connection
 chmod +x ./check_network.sh
 ./check_network.sh
 
-#################################
-# 3. Environment Configuration  #
-#################################
+# 2. Prompt for installation variables
+chmod +x ./configure_environment.sh
+# shellcheck disable=SC1091
+source ./configure_environment.sh
 
-echo -e "${BLUE}[3/11] Configurating Installation...${NC}"
-echo -e "${YELLOW}Please Input Choices${NC}\n"
+# 3. Format & encrypt partitions
+chmod +x ./format_%26_encrypt_partitions.sh
+# shellcheck disable=SC1091
+source ./format_%26_encrypt_partitions.sh
 
-# Disk selection for instalation
-echo -e "${BLUE}Installation Disk${NC}"
-lsblk -d -p -n -o NAME,SIZE,MODEL
-read -p "\nTarget Disk (e.g.: /dev/nvme0n1 or /dev/sda): " DISK
-if [ ! -b "$DISK" ]; then
-  echo -e "${RED}Invalid Disk${NC}\n${YELLOW}(Restart script and input a valid disk)${NC}"
-  exit 1
-fi
+# 4. Create btrfs subvolumes
+chmod +x ./create_btrfs_subvolumes.sh
+./create_btrfs_subvolumes.sh
 
-echo -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
-echo -ne "${YELLOW}Confirm? (WIPE DISK): ${NC}"
-read CONF_WIPE
-[[ "$CONF_WIPE" == "WIPE DISK" ]] || exit 1
+# 5. Mount partitions
+chmod +x ./mount_partitions.sh
+./mount_partitions.sh
 
-# Size selection for partitions
-echo -e "${BLUE}Partition Sizes${NC}"
-
-read -p "EFI Partition Size [Default: 512M]: " EFI_INPUT
-EFI_SIZE=${EFI_INPUT:-512M}
-
-read -p "BOOT Partition Size [Default: 2G]: " BOOT_INPUT
-BOOT_SIZE=${BOOT_INPUT:-2G}
-
-read -p "SWAP Partition Size [Default: 10G]: " SWAP_INPUT
-SWAP_SIZE=${SWAP_INPUT:-10G}
-
-echo -e "${RED}Using: EFI=${EFI_SIZE}, BOOT=${BOOT_SIZE}, SWAP=${SWAP_SIZE}, ROOT=Remaining${NC}"
-
-echo -ne "${YELLOW}Confirm? (YES): ${NC}"
-read CONF_SIZE
-[[ "$CONF_SIZE" == "YES" ]] || exit 1
-
-# Environment selection (hostname, username, password)
-echo -e "${BLUE}System Environment${NC}"
-
-read -p "Hostname: " NEW_HOSTNAME
-read -p "Username: " NEW_USER
-
-# Password verification loop
-while true; do
-  echo -e "${BLUE}Set System Password${NC}\n${YELLOW}(Root / User / Encryption)${NC}"
-  read -s -p "Enter Password: " PASSWORD
-  echo -e ""
-  read -s -p "Confirm Password: " PASSWORD_CONFIRM
-  echo -e ""
-
-  if [ -z "$PASSWORD" ]; then
-    echo -e "${RED}Password cannot be empty!${NC}"
-  elif [ "$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
-    echo -e "${GREEN}Passwords Match!${NC}"
-
-	echo -ne "${RED}Show Password? (YES): ${NC}"
-    read SHOW_PASS
-    if [[ "$SHOW_PASS" == "YES" ]]; then
-      echo -e "${BLUE}${PASSWORD}${NC}"
-    fi
-
-	echo -ne "${YELLOW}Confirm? (YES): ${NC}"
-    read CONF_PASS
-    if [[ "$CONF_PASS" == "YES" ]]; then
-      break
-    fi
-  else
-    echo -e "${RED}Passwords do not match!${NC}\n${YELLOW}(Please try again)${NC}"
-  fi
-done
-
-echo -e "${GREEN}Configuration Finished!${NC}"
-
-########################################
-# 4. Partition Formatting & Encryption #
-########################################
-
-echo -e "${BLUE}[4/] Creating & Encrypting Partitions...${NC}"
-
-echo -e "${YELLOW}Wiping Disk...${NC}"
-wipefs -a "$DISK"
-sgdisk -Z "$DISK"
-
-# Use variable for sizes
-sgdisk -n 1:0:+${EFI_SIZE} -t 1:ef00 "$DISK"
-sgdisk -n 2:0:+${BOOT_SIZE} -t 2:8300 "$DISK"
-sgdisk -n 3:0:0 -t 3:8e00 "$DISK"
-
-if [[ "$DISK" == *"nvme"* ]]; then
-  P1="${DISK}p1"; P2="${DISK}p2"; P3="${DISK}p3"
-else
-  P1="${DISK}1"; P2="${DISK}2"; P3="${DISK}3"
-fi
-
-echo -e "${YELLOW}Encrypting Drive...${NC}"
-echo -e -n "$PASSWORD" | cryptsetup -q luksFormat "$P3"
-echo -e -n "$PASSWORD" | cryptsetup open "$P3" cryptlvm -
-
-# LVM and formatting
-pvcreate /dev/mapper/cryptlvm
-vgcreate ArchVG /dev/mapper/cryptlvm
-
-# Use variable for swap size
-lvcreate -L ${SWAP_SIZE} -n swap ArchVG
-lvcreate -l 100%FREE -n root ArchVG
-
-echo -e "${YELLOW}Formatting Partitions...${NC}"
-mkfs.fat -F32 "$P1"
-mkfs.ext4 "$P2"
-mkswap /dev/ArchVG/swap
-mkfs.btrfs /dev/ArchVG/root
-
-echo -e "${GREEN}Partition Creation Finished!${NC}"
-
-#######################
-# 5. Btrfs Subvolumes #
-#######################
-
-echo -e "${BLUE}[5/11] Creating Btrfs Subvolumes...${NC}"
-
-mount /dev/ArchVG/root /mnt
-btrfs subvolume create /mnt/@
-btrfs subvolume create /mnt/@home
-btrfs subvolume create /mnt/@var
-btrfs subvolume create /mnt/@snapshots
-umount /mnt
-
-echo -e "${GREEN}Subvolumes Creation Finished!${NC}"
-
-###############
-# 6. Mounting #
-###############
-
-echo -e "${BLUE}[6/11] Mounting Partitions & Subvolumes...${NC}"
-
-MOUNT_OPTIONS="noatime,compress=zstd,space_cache=v2"
-mount -o $MOUNT_OPTIONS,subvol=@ /dev/ArchVG/root /mnt
-mkdir -p /mnt/{boot,efi,home,var,.snapshots}
-mount -o $MOUNT_OPTIONS,subvol=@home /dev/ArchVG/root /mnt/home
-mount -o $MOUNT_OPTIONS,subvol=@var /dev/ArchVG/root /mnt/var
-mount -o $MOUNT_OPTIONS,subvol=@snapshots /dev/ArchVG/root /mnt/.snapshots
-mount "$P2" /mnt/boot
-mount "$P1" /mnt/efi
-swapon /dev/ArchVG/swap
-
-echo -e "${GREEN}Mountpoint Setup Finished!${NC}"
-
-##########################
-# 7. Install Base System #
-##########################
-
-echo -e "${BLUE}[7/11] Installing Base System...${NC}"
-
-DRIVERS="mesa mesa-utils intel-ucode vulkan-intel libva-intel-driver vulkan-radeon xf86-video-amdgpu"
-
-pacstrap /mnt base linux linux-headers linux-firmware lvm2 btrfs-progs neovim networkmanager grub efibootmgr git base-devel archlinux-keyring go $DRIVERS
-
-genfstab -U /mnt >> /mnt/etc/fstab
-
-echo -e "${GREEN}Base System Installation Finished!${NC}"
+# 6. Install base system
+chmod +x ./install_base_system.sh
+./install_base_system.sh
 
 ###########################
 # 8. System Configuration #

@@ -1,6 +1,12 @@
 #!/bin/bash
 
-echo -e "${BLUE}[2/11] Setting Up Network Connection...${NC}"
+#############################
+# Network Connection Script #
+#############################
+
+set -e
+
+echo -e "${BLUE}[1/10] Setting Up Network Connection...${NC}"
 
 echo -e "${YELLOW}Checking Network...${NC}"
 for i in {1..5}; do

@@ -4,19 +4,94 @@
 # Environment Configuration Script #
 ####################################
 
-# Colors
-YELLOW='\033[0;33m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m'
+set -e
 
-# Keymap Setup
-echo -e "${BLUE}[1/11] Setting Up Keyboard Layout...${NC}"
+echo -e "${BLUE}[2/10] Configurating Installation...${NC}"
+echo -e "${YELLOW}Please Input Choices${NC}\n"
 
-read -p "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
+# Keymap layout selection
+echo -e "${BLUE}Keyboard Layout${NC}"
+
+read -p -r "Enter keymap (e.g.: us, de, fr...): " KEYMAP_INPUT
 KEYMAP=${KEYMAP_INPUT:-us}
 loadkeys "$KEYMAP" || loadkeys us
 
 echo -e "${GREEN}Keyboard Setup Finished!${NC}"
 
+# Disk selection for instalation
+echo -e "${BLUE}Installation Disk${NC}"
+lsblk -d -p -n -o NAME,SIZE,MODEL
+read -p -r "Target Disk (e.g.: /dev/nvme0n1 or /dev/sda): " DISK
+if [ ! -b "$DISK" ]; then
+  echo -e "${RED}Invalid Disk${NC}\n${YELLOW}(Restart script and input a valid disk)${NC}"
+  exit 1
+fi
+
+echo -e "${RED}WARNING: $DISK Will Be Wiped!${NC}"
+echo -ne "${YELLOW}Confirm? (WIPE DISK): ${NC}"
+read -r CONF_WIPE
+[[ "$CONF_WIPE" == "WIPE DISK" ]] || exit 1
+
+# Size selection for partitions
+echo -e "${BLUE}Partition Sizes${NC}"
+
+read -p -r "EFI Partition Size [Default: 512M]: " EFI_INPUT
+EFI_SIZE=${EFI_INPUT:-512M}
+
+read -p -r "BOOT Partition Size [Default: 2G]: " BOOT_INPUT
+BOOT_SIZE=${BOOT_INPUT:-2G}
+
+read -p -r "SWAP Partition Size [Default: 10G]: " SWAP_INPUT
+SWAP_SIZE=${SWAP_INPUT:-10G}
+
+echo -e "${RED}Using: EFI=${EFI_SIZE}, BOOT=${BOOT_SIZE}, SWAP=${SWAP_SIZE}, ROOT=Remaining${NC}"
+
+echo -ne "${YELLOW}Confirm? (YES): ${NC}"
+read -r CONF_SIZE
+[[ "$CONF_SIZE" == "YES" ]] || exit 1
+
+# Account selection
+echo -e "${BLUE}System Environment${NC}"
+
+read -p -r "Hostname: " NEW_HOSTNAME
+read -p -r "Username: " NEW_USER
+
+# Password selection
+while true; do
+  echo -e "${BLUE}Set System Password${NC}\n${YELLOW}(Root / User / Encryption)${NC}"
+  read -s -p -r "Enter Password: " PASSWORD
+  echo -e ""
+  read -s -p -r "Confirm Password: " PASSWORD_CONFIRM
+  echo -e ""
+
+  if [ -z "$PASSWORD" ]; then
+    echo -e "${RED}Password cannot be empty!${NC}"
+  elif [ "$PASSWORD" == "$PASSWORD_CONFIRM" ]; then
+    echo -e "${GREEN}Passwords Match!${NC}"
+
+	echo -ne "${RED}Show Password? (YES): ${NC}"
+    read -r SHOW_PASS
+    if [[ "$SHOW_PASS" == "YES" ]]; then
+      echo -e "${BLUE}${PASSWORD}${NC}"
+    fi
+
+	echo -ne "${YELLOW}Confirm? (YES): ${NC}"
+    read -r CONF_PASS
+    if [[ "$CONF_PASS" == "YES" ]]; then
+      break
+    fi
+  else
+    echo -e "${RED}Passwords do not match!${NC}\n${YELLOW}(Please try again)${NC}"
+  fi
+done
+
+echo -e "${GREEN}Configuration Finished!${NC}"
+
+export KEYMAP
+export DISK
+export EFI_SIZE
+export BOOT_SIZE
+export SWAP_SIZE
+export NEW_HOSTNAME
+export NEW_USER
+export PASSWORD
