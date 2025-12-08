@@ -22,8 +22,14 @@ pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucont
 # Install bluetooth utilities
 pacman -S --noconfirm bluez bluez-utils
 
-# Install hyprland & essentials
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hyprpaper hypridle hyprlock tlp tlp-rdw brightnessctl dunst wl-clipboard polkit-kde-agent kitty thunar gvfs xdg-user-dirs greetd firefox
+# Install keyboard utilities
+pacman -S brightnessctl wl-clipboard
+
+# Install hyprland & hyprland apps
+pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hyprpaper hypridle polkit-kde-agent
+
+# Install essentials
+pacman -S tlp tlp-rdw foot thunar gvfs xdg-user-dirs greetd firefox
 
 # Install fonts
 pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
@@ -84,13 +90,11 @@ bindl = ,XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 bindel = ,XF86MonBrightnessUp, exec, brightnessctl s 5%+
 bindel = ,XF86MonBrightnessDown, exec, brightnessctl s 5%-
 
-bind = \\\$mainMod, Return, exec, kitty
+bind = \\\$mainMod, Return, exec, foot
 bind = \\\$mainMod, W, killactive,
 bind = \\\$mainMod, F, exec, thunar
 bind = \\\$mainMod, T, togglefloating,
 bind = \\\$mainMod, Y, togglesplit,
-bind = \\\$mainMod, Space, exec, walker
-bind = \\\$mainMod, L, exec, hyprlock
 
 bind = \\\$mainMod, B, exec, firefox
 bind = \\\$mainMod, A, exec, firefox --kiosk "https://gemini.google.com" --class gemini-app

@@ -21,12 +21,10 @@ chmod +x ./src/check_network.sh
 
 # 2. Prompt for installation variables
 chmod +x ./src/configure_installation.sh
-# shellcheck source=/dev/null
 source ./src/configure_installation.sh
 
 # 3. Format & encrypt partitions
 chmod +x ./src/format_%26_encrypt_partitions.sh
-# shellcheck source=/dev/null
 source ./src/format_%26_encrypt_partitions.sh
 
 # 4. Create btrfs subvolumes
