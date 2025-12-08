@@ -24,8 +24,8 @@ chmod +x ./src/configure_installation.sh
 source ./src/configure_installation.sh
 
 # 3. Format & encrypt partitions
-chmod +x ./src/format_%26_encrypt_partitions.sh
-source ./src/format_%26_encrypt_partitions.sh
+chmod +x ./src/format_\&_encrypt_partitions.sh
+source ./src/format_\&_encrypt_partitions.sh
 
 # 4. Create btrfs subvolumes
 chmod +x ./src/create_btrfs_subvolumes.sh
