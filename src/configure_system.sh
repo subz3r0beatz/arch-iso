@@ -17,7 +17,7 @@ ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 hwclock --systohc
 echo -e "en_US.UTF-8" > /etc/locale.gen
 locale-gen
-echo -e "LANG=en_US.UTF-8" > /etc/locale.conf
+echo -e "LANG=en_US.UTF-8 UTF-8" > /etc/locale.conf
 echo -e "$NEW_HOSTNAME" > /etc/hostname
 echo -e "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 echo -e "127.0.0.1 localhost $NEW_HOSTNAME" >> /etc/hosts
