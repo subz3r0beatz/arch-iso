@@ -18,9 +18,9 @@ export FAKEROOTDONTTRYSYSV=1
 cd /tmp
 git clone https://aur.archlinux.org/yay.git
 cd yay
-makepkg -si --noconfirm
+makepkg -si # --noconfirm #
 
-yay -S --noconfirm quickshell-git qt6-wayland
+yay -S # --noconfirm # quickshell-git qt6-wayland
 EOF
 
 chmod +x /mnt/setup_aur.sh
