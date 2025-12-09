@@ -14,28 +14,28 @@ cat <<EOF > /mnt/setup_gui.sh
 set -e
 
 # Update archlinux-keyring
-pacman -Sy --noconfirm archlinux-keyring
+pacman -Sy archlinux-keyring
 
 # Install sound utilities
-pacman -S --noconfirm pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol
+pacman -S pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber pavucontrol
 
 # Install bluetooth utilities
-pacman -S --noconfirm bluez bluez-utils
+pacman -S bluez bluez-utils
 
 # Install keyboard utilities
 pacman -S brightnessctl wl-clipboard
 
 # Install hyprland & hyprland apps
-pacman -S --noconfirm hyprland xdg-desktop-portal-hyprland hyprpaper hypridle polkit-kde-agent
+pacman -S hyprland xdg-desktop-portal-hyprland hyprpaper hypridle polkit-kde-agent
 
 # Install essentials
 pacman -S tlp tlp-rdw foot thunar gvfs xdg-user-dirs greetd firefox
 
 # Install fonts
-pacman -S --noconfirm ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
+pacman -S ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
 
 # Install auto snapshot utilities
-pacman -S --noconfirm snapper snap-pac
+pacman -S snapper snap-pac
 
 systemctl enable tlp
 
